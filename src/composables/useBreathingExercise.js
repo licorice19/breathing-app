@@ -1,5 +1,6 @@
-import { ref, computed } from 'vue';
+import { ref, computed, reactive } from 'vue';
 import { exercises } from '../data/exercises';
+import { useWakeLock } from '@vueuse/core'
 
 export function useBreathingExercise() {
     const isRunning = ref(false);
@@ -9,6 +10,10 @@ export function useBreathingExercise() {
     const countdownValue = ref(3);
     const currentInstruction = ref('');
     const remainingSeconds = ref(0);
+    const wakeLock = reactive(useWakeLock())
+
+    const wakeLockActiveText = computed(() => wakeLock.isActive ? 'OFF' : 'ON').value
+    console.log("WakeLock:" + wakeLockActiveText)
 
     let intervalId = null;
     let currentStep = 0;
