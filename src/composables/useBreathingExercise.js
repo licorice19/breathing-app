@@ -1,6 +1,5 @@
-import { ref, computed, reactive } from 'vue';
+import { ref, computed } from 'vue';
 import { exercises } from '../data/exercises';
-import { useWakeLock } from '@vueuse/core'
 
 export function useBreathingExercise() {
     const isRunning = ref(false);
@@ -10,10 +9,39 @@ export function useBreathingExercise() {
     const countdownValue = ref(3);
     const currentInstruction = ref('');
     const remainingSeconds = ref(0);
-    const wakeLock = reactive(useWakeLock())
+    var lock = null
 
-    const wakeLockActiveText = computed(() => wakeLock.isActive ? 'OFF' : 'ON').value
-    console.log("WakeLock:" + wakeLockActiveText)
+    const enableWakeLock = async () => {
+        try {
+            if (!navigator.wakeLock) {
+                throw new Error('Wake Lock API not supported');
+            }
+            const lock = await navigator.wakeLock.request('screen');
+            console.log('Wake Lock: ON');
+            
+            return lock;
+        } catch (err) {
+            console.error(`${err.name}, ${err.message}`);
+            return null;
+        }
+    };
+    
+    const disableWakeLock = async (lock) => {
+        try {
+            if (!lock) {
+                console.log('No wake lock to release');
+                return;
+            }
+            if (lock.released) {
+                console.log('Wake Lock already released');
+                return;
+            }
+            await lock.release();
+            console.log('Wake Lock: OFF');
+        } catch (err) {
+            console.error(`${err.name}, ${err.message}`);
+        }
+    }; 
 
     let intervalId = null;
     let currentStep = 0;
@@ -23,12 +51,12 @@ export function useBreathingExercise() {
         exercises.find(ex => ex.id === Number(currentExerciseId.value))
     );
 
-    const startExercise = () => {
+    const startExercise = async () => {
         if (isRunning.value) {
-            stopExercise();
+              await stopExercise();
             return;
         }
-
+        lock = await enableWakeLock()
         showCountdown.value = true;
         countdownValue.value = 3;
 
@@ -71,12 +99,12 @@ export function useBreathingExercise() {
                 break;
         }
 
-        intervalId = setInterval(() => {
+        intervalId = setInterval( async () => {
             const elapsed = Date.now() - startTime;
             const progress = Math.min(elapsed / stepDuration, 1);
 
             remainingSeconds.value = Math.ceil((stepDuration - elapsed) / 1000);
-            
+
             switch (step.type) {
                 case 'inhale':
                     scale.value = progress;
@@ -97,7 +125,7 @@ export function useBreathingExercise() {
                     currentRepetition++;
 
                     if (currentRepetition >= exercise.repetitions) {
-                        stopExercise();
+                        await stopExercise();
                         return;
                     }
                 }
@@ -107,12 +135,13 @@ export function useBreathingExercise() {
         }, 16);
     };
 
-    const stopExercise = () => {
+    const stopExercise = async () => {
         isRunning.value = false;
         clearInterval(intervalId);
         scale.value = 0.0;
         currentInstruction.value = '';
         remainingSeconds.value = 0;
+        lock = await disableWakeLock(lock)
     };
 
     return {
