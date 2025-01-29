@@ -44,6 +44,7 @@ export const exercises = [
         id: 5,
         name:"Iceman method (Very hard)",
         sequence: [
+            { type: "exhale", duration: 2 },
             { type: "inhale", duration: 2 },
             { type: "exhale", duration: 2 },
             { type: "inhale", duration: 2 },
